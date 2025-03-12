@@ -10,12 +10,11 @@
     "build": "vite build",
     "preview": "vite preview",
     "start": "electron .",
-    "pack": "electron-builder --dir",
-    "dist": "electron-builder"
+    "pack": "electron-builder --dir"
   },
   "build": {
     "appId": "com.electron.pet",
-    "productName": "Desktop Pet",
+    "productName": "Pet",
     "directories": {
       "output": "release"
     },
@@ -23,7 +22,8 @@
       "target": [
         "nsis",
         "portable"
-      ]
+      ],
+      "icon": "./assets/tiger.ico"
     }
   },
   "author": "",

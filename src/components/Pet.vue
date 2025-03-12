@@ -4,6 +4,7 @@
       class="floating-ball" 
       ref="petRef"
       @mousedown="handleMouseDown"
+      @contextmenu="handleContextMenu"
       :class="{ 'positive': isPositive, 'negative': !isPositive }"
     >
       <div class="ball-content">
@@ -29,10 +30,13 @@
             />
           </svg>
           <div class="percentage-text" :class="{ 'positive': isPositive, 'negative': !isPositive }">
-            {{ isPositive ? '+' : '-' }}{{ percentage.toFixed(2) }}%
+            {{ isPositive ? '+' : '-' }}{{ percentage?percentage.toFixed(2)+'%':'无效' }}
           </div>
         </div>
       </div>
+    </div>
+    <div ref="contextMenu" class="context-menu">
+      <input type="text" v-model="stockCode" placeholder="输入股票代码或名称" @blur="handleInputBlur" />
     </div>
   </div>
 </template>
@@ -42,9 +46,10 @@ import { ref, onMounted, onUnmounted } from 'vue'
 const { ipcRenderer } = require('electron')
 
 const petRef = ref(null)
+const contextMenu = ref(null)
 const isDragging = ref(false)
 const percentage = ref(0)
-const stockCode = ref('sh688189') // 岩山科技，腾讯API格式
+const stockCode = ref('sz000001') // 上证指数，腾讯API格式
 const isPositive = ref(true)
 let initialMouseX = 0
 let initialMouseY = 0
@@ -120,6 +125,40 @@ const handleMouseUp = (e) => {
   isDragging.value = false
 }
 
+// 右键菜单功能
+const handleContextMenu = (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  
+  // 设置菜单位置
+  const rect = contextMenu.value.getBoundingClientRect();
+  const ballRect = petRef.value.getBoundingClientRect();
+  const screenWidth = window.innerWidth;
+  
+  let finalX = ballRect.right + 5; // 默认在右侧5px
+  if (finalX + rect.width > screenWidth) {
+    finalX = ballRect.left - rect.width - 5; // 如果超出屏幕右侧，则显示在左侧
+  }
+  
+  contextMenu.value.style.left = `${finalX}px`;
+  contextMenu.value.style.top = `${ballRect.top}px`;
+  contextMenu.value.style.display = 'block';
+  
+  // 聚焦输入框
+  contextMenu.value.querySelector('input').focus();
+}
+
+// 股票搜索功能
+const handleSearch = async () => {
+  const query = stockCode.value.trim();
+  if (query) {
+    await fetchStockData();
+    contextMenu.value.style.display = 'none';
+  }
+}
+const handleInputBlur = (e) => {
+  contextMenu.value.style.display = 'none';
+}
 onMounted(() => {
   document.addEventListener('mouseup', handleMouseUp)
   // 初始获取数据
@@ -143,7 +182,6 @@ onUnmounted(() => {
   width: 100%;
   height: 100vh;
   display: flex;
-  justify-content: center;
   align-items: center;
   overflow: hidden;
 }
@@ -220,5 +258,26 @@ onUnmounted(() => {
 
 .floating-ball {
   animation: float 3s ease-in-out infinite;
+}
+
+.context-menu {
+  display: none;
+  position: fixed;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  min-width: 80px;
+}
+
+
+.context-menu input {
+  padding: 5px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  width: 60px;
+  font-size: 14px;
 }
 </style> 

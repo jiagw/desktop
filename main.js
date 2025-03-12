@@ -1,5 +1,7 @@
-const { app, BrowserWindow, ipcMain, screen, session } = require('electron/main')
+const { app, BrowserWindow, ipcMain, screen, session, Tray, Menu } = require('electron/main')
 const path = require('node:path')
+
+let tray = null
 
 const createWindow = () => {
   // 配置请求头
@@ -34,7 +36,7 @@ const createWindow = () => {
   })
 
   const win = new BrowserWindow({
-    width: 100,
+    width: 200,
     height: 100,
     frame: false,
     show: true,
@@ -61,7 +63,7 @@ const createWindow = () => {
     // 打开开发者工具
     win.webContents.openDevTools({ mode: 'detach' })
   } else {
-    win.loadFile('dist/index.html')
+    win.loadFile('dist/index.html'); // 确保路径正确
   }
   
   // 获取窗口位置
@@ -73,7 +75,7 @@ const createWindow = () => {
   let refreshInterval = null
 
   // 开始数据刷新
-  ipcMain.on('start-refresh', (event, interval = 3000) => {
+  ipcMain.on('start-refresh', (event, interval = 1000) => {
     if (refreshInterval) {
       clearInterval(refreshInterval)
     }
@@ -144,7 +146,20 @@ const createWindow = () => {
       win.setPosition(screenWidth - winWidth - 20, currentY)
     }
   })
+
+  // 创建托盘图标
+  tray = new Tray(path.join(__dirname, 'assets', 'tiger.ico')) // 确保提供正确的图标路径
+  const contextMenu = Menu.buildFromTemplate([
+    { label: '退出', click: () => { app.quit(); } }
+  ])
+  tray.setToolTip('Desktop Pet')
+  tray.setContextMenu(contextMenu)
+
+  tray.on('click', () => {
+    win.isVisible() ? win.hide() : win.show()
+  })
 }
+app.commandLine.appendSwitch('ignore-certificate-errors')
 
 app.whenReady().then(() => {
   createWindow()
