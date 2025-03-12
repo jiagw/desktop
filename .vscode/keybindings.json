@@ -1,0 +1,12 @@
+[
+  {
+    "key": "ctrl+f5",
+    "command": "workbench.action.tasks.runTask",
+    "args": "重启应用"
+  },
+  {
+    "key": "f5",
+    "command": "workbench.action.tasks.runTask",
+    "args": "启动应用"
+  }
+] 

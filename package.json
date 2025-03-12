@@ -1,0 +1,42 @@
+{
+  "name": "electron-pet",
+  "version": "1.0.0",
+  "description": "桌面宠物应用",
+  "main": "main.js",
+  "scripts": {
+    "dev:vite": "vite",
+    "dev:electron": "cross-env NODE_ENV=development electron .",
+    "dev": "concurrently \"npm run dev:vite\" \"npm run dev:electron\"",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.electron.pet",
+    "productName": "Desktop Pet",
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    }
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "vue": "^3.3.4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^4.2.3",
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
+    "electron": "^28.0.0",
+    "electron-builder": "^25.1.8",
+    "vite": "^4.4.9"
+  }
+}
