@@ -36,8 +36,8 @@ const createWindow = () => {
   })
 
   const win = new BrowserWindow({
-    width: 200,
-    height: 100,
+    width: 400,
+    height: 500,
     frame: false,
     show: true,
     skipTaskbar: true,
@@ -63,7 +63,10 @@ const createWindow = () => {
     // 打开开发者工具
     win.webContents.openDevTools({ mode: 'detach' })
   } else {
-    win.loadFile('dist/index.html'); // 确保路径正确
+    // 修改打包后的文件路径
+    const isDev = process.env.NODE_ENV === 'development'
+    const basePath = isDev ? __dirname : path.dirname(app.getPath('exe'))
+    win.loadFile(path.join(basePath, 'dist', 'index.html'))
   }
   
   // 获取窗口位置
@@ -148,7 +151,9 @@ const createWindow = () => {
   })
 
   // 创建托盘图标
-  tray = new Tray(path.join(__dirname, 'assets', 'tiger.ico')) // 确保提供正确的图标路径
+  const isDev = process.env.NODE_ENV === 'development'
+  const basePath = isDev ? __dirname : path.dirname(app.getPath('exe'))
+  tray = new Tray(path.join(basePath, 'assets', 'tiger.ico'))
   const contextMenu = Menu.buildFromTemplate([
     { label: '退出', click: () => { app.quit(); } }
   ])
@@ -158,7 +163,14 @@ const createWindow = () => {
   tray.on('click', () => {
     win.isVisible() ? win.hide() : win.show()
   })
+
+  // 注册 get-app-path 处理程序
+  ipcMain.handle('get-app-path', () => {
+    const isDev = process.env.NODE_ENV === 'development'
+    return isDev ? app.getAppPath() : path.dirname(app.getPath('exe'))
+  })
 }
+
 app.commandLine.appendSwitch('ignore-certificate-errors')
 
 app.whenReady().then(() => {

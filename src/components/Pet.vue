@@ -30,13 +30,30 @@
             />
           </svg>
           <div class="percentage-text" :class="{ 'positive': isPositive, 'negative': !isPositive }">
-            {{ isPositive ? '+' : '-' }}{{ percentage?percentage.toFixed(2)+'%':'无效' }}
+            {{  (limit?isPositive ? '+' : '-':'') }}{{ percentage?limit ?percentage.toFixed(2):percentage:'无效' }}
           </div>
         </div>
       </div>
     </div>
     <div ref="contextMenu" class="context-menu">
-      <input type="text" v-model="stockCode" placeholder="输入股票代码或名称" @blur="handleInputBlur" />
+      <div class="search-container">
+        <input
+          type="text"
+          v-model="searchQuery"
+          @input="handleSearchInput"
+          @blur="handleInputBlur"
+        />
+        <div v-if="searchResults.length > 0" class="search-results">
+          <div
+            v-for="stock in searchResults"
+            :key="stock.code"
+            class="search-item"
+            @mousedown="selectStock(stock)"
+          >
+            {{ stock.name }} ({{ stock.code }})
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -44,6 +61,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 const { ipcRenderer } = require('electron')
+import { stocksData as defaultStocks } from '../assets/stocks'
 
 const petRef = ref(null)
 const contextMenu = ref(null)
@@ -51,11 +69,25 @@ const isDragging = ref(false)
 const percentage = ref(0)
 const stockCode = ref('sz000001') // 上证指数，腾讯API格式
 const isPositive = ref(true)
+const searchQuery = ref('')
+const searchResults = ref([])
+const stocksData = ref([]) // 改为响应式数据
+const limit = ref(0) // 添加涨跌幅限制
+const limitNum = ref(0) // 添加涨跌幅限制数值
 let initialMouseX = 0
 let initialMouseY = 0
 let windowInitialX = 0
 let windowInitialY = 0
 let mouseDownTime = 0
+
+// 加载股票数据
+const loadStocksData = async () => {
+  try {
+    stocksData.value = defaultStocks
+  } catch (error) {
+    console.error('加载股票数据失败:', error)
+  }
+}
 
 // 获取股票数据
 const fetchStockData = async () => {
@@ -64,13 +96,28 @@ const fetchStockData = async () => {
     const text = await response.text()
     const data = text.split(',')
     
-    // 获取涨跌幅
-    const currentPrice = parseFloat(data[3])
-    const prevClose = parseFloat(data[2])
-    const changePercent = ((currentPrice - prevClose) / prevClose) * 100
+    // 获取当前时间
+    const now = new Date()
+    const hours = now.getHours()
+    const minutes = now.getMinutes()
     
+    // 获取价格数据
+    const currentPrice = parseFloat(data[3]) // 当前价格
+    const prevClose = parseFloat(data[2])    // 昨日收盘价
+    const complete = parseFloat(data[6])     // 集合竞价价格
+    limit.value = parseFloat(data[21])       // 涨跌幅限制
+    limitNum.value = parseFloat(data[10])    // 涨跌幅限制数值
+    
+    let changePercent
+    // 在9:15-9:25之间使用集合竞价价格
+    if (hours === 9 && minutes >= 15 && minutes <= 25) {
+      changePercent = ((complete - prevClose) / prevClose) * 100
+    } else {
+      changePercent = ((currentPrice - prevClose) / prevClose) * 100
+    }
+
     // 更新状态
-    percentage.value = Math.abs(changePercent)
+    percentage.value = limit.value === 0 ? Math.floor(limitNum.value / 100) : Math.abs(changePercent)
     isPositive.value = changePercent >= 0
   } catch (error) {
     console.error('获取股票数据失败:', error)
@@ -148,19 +195,42 @@ const handleContextMenu = (e) => {
   contextMenu.value.querySelector('input').focus();
 }
 
-// 股票搜索功能
-const handleSearch = async () => {
-  const query = stockCode.value.trim();
-  if (query) {
-    await fetchStockData();
-    contextMenu.value.style.display = 'none';
+// 处理搜索输入
+const handleSearchInput = () => {
+  if (!searchQuery.value.trim()) {
+    searchResults.value = []
+    return
   }
+  console.log(stocksData.value);
+  
+  const query = searchQuery.value.toLowerCase()
+  searchResults.value = stocksData.value.filter(stock =>
+    stock.name.toLowerCase().includes(query) ||
+    stock.code.toLowerCase().includes(query)
+  ) // 只显示前5个结果
 }
+
+// 选择股票
+const selectStock = (stock) => {
+  stockCode.value = stock.code
+  searchQuery.value = stock.name
+  searchResults.value = []
+  fetchStockData()
+}
+
+// 修改原有的handleInputBlur
 const handleInputBlur = (e) => {
-  contextMenu.value.style.display = 'none';
+  // 延迟隐藏，以便用户能够点击搜索结果
+  setTimeout(() => {
+    if (!searchResults.value.length) {
+      contextMenu.value.style.display = 'none'
+    }
+  }, 200)
 }
 onMounted(() => {
   document.addEventListener('mouseup', handleMouseUp)
+  // 加载股票数据
+  loadStocksData()
   // 初始获取数据
   fetchStockData()
   // 启动定时刷新
@@ -272,12 +342,39 @@ onUnmounted(() => {
   min-width: 80px;
 }
 
+.search-container {
+  position: relative;
+}
+
+.search-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin-top: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1001;
+}
+
+.search-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.search-item:hover {
+  background-color: #f5f5f5;
+}
 
 .context-menu input {
-  padding: 5px;
+  padding: 8px;
   border: 1px solid #ccc;
-  border-radius: 3px;
-  width: 60px;
+  border-radius: 4px;
+  width: 200px;
   font-size: 14px;
 }
 </style> 
